@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
 
@@ -210,6 +211,13 @@ ON CONFLICT (hash, partition_id) DO UPDATE
 	logsBz, err := json.Marshal(tx.Logs)
 	if err != nil {
 		return err
+	}
+
+	// NOTE: if raw log is not a valid utf8 string, insert will return an error.
+	// As we can't control sdk behavior, we need to replace invalid utf8 characters
+	// with a valid one
+	if !utf8.ValidString(tx.RawLog) {
+		tx.RawLog = utils.ReplaceInvalidUTF8(tx.RawLog)
 	}
 
 	_, err = db.SQL.Exec(sqlStatement,
